@@ -29,15 +29,15 @@ type RequestEngine interface {
 }
 
 type Route struct {
-	Path string
+	Path        string
 	Middlewares []Middleware
-	SubRoutes []Route
-	Get Handler `httpVerb:"GET"`
-	Post Handler `httpVerb:"POST"`
-	Put Handler `httpVerb:"PUT"`
-	Delete Handler `httpVerb:"DELETE"`
-	Patch Handler `httpVerb:"PATCH"`
-	Head Handler `httpVerb:"HEAD"`
+	SubRoutes   []Route
+	Get         Handler `httpVerb:"GET"`
+	Post        Handler `httpVerb:"POST"`
+	Put         Handler `httpVerb:"PUT"`
+	Delete      Handler `httpVerb:"DELETE"`
+	Patch       Handler `httpVerb:"PATCH"`
+	Head        Handler `httpVerb:"HEAD"`
 }
 
 func (r *Route) AddRoute(path string, f func(root *Route)) Route {
@@ -97,18 +97,21 @@ func MakeRoot(f func(root *Route)) Route {
 	return root
 }
 
-//can return nil if the path doesnt exist
-//if a parameterisedPath pointer is given, it will be populated with the value of the
-//the final path of the handler found, in a parameterised shape.
-//For example trying to route "/abc/123/def" could return a parameterisedPath of "/abc/{myVar}/def"
-//this also returns the list of all the middlewares found on the way to the final handler
+// can return nil if the path doesnt exist
+// if a parameterisedPath pointer is given, it will be populated with the value of the
+// the final path of the handler found, in a parameterised shape.
+// For example trying to route "/abc/123/def" could return a parameterisedPath of "/abc/{myVar}/def"
+// this also returns the list of all the middlewares found on the way to the final handler
 func FindRoute(path string, verb string, root Route, parameterisedPath *string, middlewares []Middleware) (Handler, []Middleware) {
 	split := strings.FieldsFunc(path, func(r rune) bool {
 		return r == '/'
 	})
 
+	if len(split) == 0 {
+		return nil, nil
+	}
 	//fmt.Println("looking at ", root.Path, "comparing to", "/" + split[0], "split is", split, len(split))
-	if !(len(split) == 0 || root.Path == "" || matchPathElement(root.Path, "/" + split[0])) {
+	if !(len(split) == 0 || root.Path == "" || matchPathElement(root.Path, "/"+split[0])) {
 		return nil, nil
 	}
 
@@ -125,7 +128,7 @@ func FindRoute(path string, verb string, root Route, parameterisedPath *string, 
 		return getVerb(root, verb), middlewares
 	}
 	//not exact match, look in subroutes
-	subpath := strings.TrimPrefix(path, "/" + split[0])
+	subpath := strings.TrimPrefix(path, "/"+split[0])
 	if root.Path == "" {
 		subpath = path
 	}
@@ -145,6 +148,7 @@ func FindRoute(path string, verb string, root Route, parameterisedPath *string, 
 }
 
 var pathParamRegex = regexp.MustCompile(`/{[^/]*?}`)
+
 func matchPathElement(inputPath string, element string) bool {
 	split := strings.FieldsFunc(inputPath, func(r rune) bool {
 		return r == '/'
@@ -200,7 +204,7 @@ func SetRouteVerb(route *Route, verb string, handler Handler) {
 	}
 }
 
-//var pathParamRegexExtract = regexp.MustCompile(`({[^/]*?})`)
+// var pathParamRegexExtract = regexp.MustCompile(`({[^/]*?})`)
 func ExtractPathParameters(path string, parameterisedPath string) (map[string]string, error) {
 	dynamicRegex := pathParamRegex.ReplaceAllFunc([]byte(parameterisedPath), func(bytes []byte) []byte {
 		name := string(bytes)
